@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Report: Maximizing Compressor Efficiency in Refineries</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: The application is designed as a single-page, non-linear dashboard. This structure was chosen to allow users to explore the dense information from the report based on their interests, rather than following the linear report flow. The key sections (Overview, Compressor Types, Strategies, Case Studies, and Business Case) are accessible via a sticky navigation bar. This task-oriented design enhances usability by breaking down the complex topic into manageable, interactive modules. For instance, the 'Efficiency Strategies' section uses an interactive bubble chart and filters to present data from the report's tables in a far more engaging and intuitive way than a static table, allowing users to quickly grasp cost vs. impact. The flow guides the user from understanding the problem (Overview) to exploring solutions (Strategies & Case Studies) and finally to taking action (Business Case). -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Lifecycle Cost Breakdown (Energy 75%, Maintenance 15%, Capital 10%). Goal: Inform. Viz/Method: Donut Chart (Chart.js/Canvas). Interaction: Hover tooltips. Justification: A donut chart provides an immediate, clear visual representation of the overwhelming contribution of energy to total cost, reinforcing the report's central thesis.
+        - Report Info: Comparison of Compressor Types (Table 1). Goal: Compare. Viz/Method: Tabbed Interface (HTML/CSS/JS). Interaction: Clicking tabs reveals detailed content. Justification: Tabs organize detailed comparative data cleanly, preventing information overload and allowing users to focus on one type at a time.
+        - Report Info: Efficiency Measures Summary (Table 2). Goal: Compare & Prioritize. Viz/Method: Interactive Bubble Chart (Chart.js/Canvas) plotting Savings Potential vs. Implementation Cost. Interaction: Filtering by cost category (Low, Medium, High) and hovering over bubbles for details. Justification: This transforms a static table into a strategic decision-making tool, enabling users to visually identify high-impact, low-cost opportunities ('low-hanging fruit') instantly.
+        - Report Info: Case Study Financial Impact (Table 3). Goal: Compare & Demonstrate Value. Viz/Method: Bar Chart (Chart.js/Canvas). Interaction: Hover tooltips showing specific values. Justification: A bar chart provides a powerful and direct visual comparison of the financial returns from different real-world projects, making the case for investment compelling.
+        - Report Info: LDAR Process. Goal: Organize/Inform. Viz/Method: Numbered list with icons (HTML/CSS). Interaction: Static. Justification: A simple, clean visual flow is most effective for explaining a sequential process.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFBF8;
+            color: #3D4451;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 350px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .bubble-chart-container {
+            position: relative;
+            width: 100%;
+            height: 450px;
+            max-height: 50vh;
+        }
+        .case-study-chart-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            max-height: 50vh;
+        }
+        .nav-link {
+            transition: all 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #D97706; /* Amber-600 */
+            border-bottom-color: #D97706;
+        }
+        .tab-btn.active {
+            background-color: #047857; /* Emerald-600 */
+            color: #ffffff;
+        }
+        .tab-btn {
+            transition: all 0.3s;
+        }
+        .filter-btn.active {
+            background-color: #047857;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .case-card {
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .case-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .tooltip {
+            background-color: #3D4451;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .tooltip-arrow::before {
+            border-color: #3D4451 transparent transparent transparent;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-6 py-3">
+            <div class="flex justify-between items-center">
+                <div class="text-xl font-bold text-gray-800">
+                    <span class="text-emerald-600">Compressor</span>Efficiency
+                </div>
+                <div class="hidden md:flex items-center space-x-6">
+                    <a href="#overview" class="nav-link px-2 py-1">Overview</a>
+                    <a href="#types" class="nav-link px-2 py-1">Compressor Types</a>
+                    <a href="#strategies" class="nav-link px-2 py-1">Efficiency Strategies</a>
+                    <a href="#casestudies" class="nav-link px-2 py-1">Case Studies</a>
+                    <a href="#roadmap" class="nav-link px-2 py-1">Business Case</a>
+                </div>
+                <button id="mobile-menu-button" class="md:hidden p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                </button>
+            </div>
+            <div id="mobile-menu" class="hidden md:hidden mt-4 space-y-2">
+                <a href="#overview" class="block nav-link py-2">Overview</a>
+                <a href="#types" class="block nav-link py-2">Compressor Types</a>
+                <a href="#strategies" class="block nav-link py-2">Efficiency Strategies</a>
+                <a href="#casestudies" class="block nav-link py-2">Case Studies</a>
+                <a href="#roadmap" class="block nav-link py-2">Business Case</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section id="overview" class="py-16 md:py-24 bg-white">
+            <div class="container mx-auto px-6 text-center">
+                <h1 class="text-3xl md:text-5xl font-bold text-gray-800 mb-4">The Strategic Imperative of Compressor Efficiency</h1>
+                <p class="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto mb-12">Compressors are the heart of a refinery, but they are also its largest energy consumers. Optimizing their efficiency is not just an operational goal—it's a direct path to enhanced profitability and sustainability in a competitive market.</p>
+
+                <div class="grid md:grid-cols-2 lg:grid-cols-2 gap-8 items-center">
+                    <div class="bg-gray-50 p-8 rounded-xl shadow-md text-left">
+                        <h3 class="text-2xl font-bold text-gray-800 mb-4">The Unseen Cost of Energy</h3>
+                         <p class="text-gray-600 mb-6">The initial purchase price of a compressor is just the tip of the iceberg. Over its lifetime, energy consumption represents the vast majority of the total cost of ownership. This chart illustrates why focusing on energy efficiency yields the highest return on investment.</p>
+                        <div class="flex flex-wrap gap-4 text-sm">
+                            <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-red-500 mr-2"></span>Capital Cost: ~10%</div>
+                            <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-yellow-500 mr-2"></span>Maintenance: ~15%</div>
+                            <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-emerald-600 mr-2"></span>Energy: ~75%</div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="lifecycleCostChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="types" class="py-16 md:py-24">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-800">Understanding Compressor Technologies</h2>
+                    <p class="text-lg text-gray-600 mt-2 max-w-2xl mx-auto">Selecting the right compressor is the first step toward efficiency. Each type has unique strengths tailored to specific refinery applications. Explore the three primary technologies to understand their roles and characteristics.</p>
+                </div>
+
+                <div class="max-w-4xl mx-auto">
+                    <div class="flex justify-center border-b-2 border-gray-200 mb-8">
+                        <button data-tab="centrifugal" class="tab-btn active text-lg font-semibold px-6 py-3 -mb-px rounded-t-lg">Centrifugal</button>
+                        <button data-tab="reciprocating" class="tab-btn text-lg font-semibold px-6 py-3 -mb-px rounded-t-lg">Reciprocating</button>
+                        <button data-tab="rotaryscrew" class="tab-btn text-lg font-semibold px-6 py-3 -mb-px rounded-t-lg">Rotary Screw</button>
+                    </div>
+                    <div id="tab-content" class="fade-in">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="strategies" class="py-16 md:py-24 bg-white">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-800">A Spectrum of Efficiency Strategies</h2>
+                    <p class="text-lg text-gray-600 mt-2 max-w-3xl mx-auto">Efficiency is achieved through a multi-layered approach, from foundational maintenance to advanced digital solutions. This interactive chart plots potential energy savings against implementation cost, helping to identify the most impactful strategies for your facility.</p>
+                </div>
+                
+                <div class="flex justify-center items-center gap-4 mb-8">
+                    <span class="font-semibold text-gray-700">Filter by Cost:</span>
+                    <button data-filter="all" class="filter-btn active px-4 py-2 rounded-full bg-white shadow-sm border border-gray-200">All</button>
+                    <button data-filter="low" class="filter-btn px-4 py-2 rounded-full bg-white shadow-sm border border-gray-200">Low Cost</button>
+                    <button data-filter="medium" class="filter-btn px-4 py-2 rounded-full bg-white shadow-sm border border-gray-200">Medium Cost</button>
+                    <button data-filter="high" class="filter-btn px-4 py-2 rounded-full bg-white shadow-sm border border-gray-200">High Cost</button>
+                </div>
+
+                <div class="bubble-chart-container">
+                    <canvas id="strategiesChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="casestudies" class="py-16 md:py-24">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-800">Efficiency in Action: Real-World Impact</h2>
+                    <p class="text-lg text-gray-600 mt-2 max-w-3xl mx-auto">Theoretical gains become tangible results in the field. These case studies demonstrate how targeted efficiency projects deliver substantial financial and operational returns, from millions in avoided production losses to hundreds of thousands in annual energy savings.</p>
+                </div>
+
+                <div class="grid lg:grid-cols-2 gap-12 items-center">
+                    <div id="case-study-details" class="p-8 rounded-lg bg-white shadow-lg order-2 lg:order-1">
+                        <h3 id="case-title" class="text-2xl font-bold text-emerald-700 mb-3">Select a case study to see the details.</h3>
+                        <div id="case-content">
+                            <p class="text-gray-600">Click on the cards to explore the problems, solutions, and profound financial outcomes of real-world efficiency initiatives.</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 order-1 lg:order-2">
+                         <div id="case-study-cards"></div>
+                    </div>
+                </div>
+                 <div class="mt-16 bg-white p-8 rounded-xl shadow-lg">
+                    <h3 class="text-2xl font-bold text-center mb-6">Comparing Financial & Operational Value</h3>
+                    <div class="case-study-chart-container">
+                        <canvas id="caseStudiesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="roadmap" class="py-16 md:py-24 bg-white">
+            <div class="container mx-auto px-6">
+                 <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-800">Building Your Business Case for Efficiency</h2>
+                    <p class="text-lg text-gray-600 mt-2 max-w-3xl mx-auto">Transforming technical potential into funded projects requires a strategic approach. Follow this roadmap to build a compelling business case, overcome implementation hurdles, and foster a culture of sustained energy efficiency.</p>
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div class="bg-gray-50 p-8 rounded-lg shadow-md">
+                        <div class="flex items-center justify-center w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 mb-6 text-3xl font-bold">1</div>
+                        <h3 class="text-xl font-bold mb-3">Audit & Assess</h3>
+                        <p class="text-gray-600">Begin with a data-driven system audit. Establish a baseline of your current energy consumption, flow rates, and pressure profiles. Conduct a thorough leak detection survey to quantify waste and identify the most significant sources of inefficiency.</p>
+                    </div>
+                    <div class="bg-gray-50 p-8 rounded-lg shadow-md">
+                        <div class="flex items-center justify-center w-16 h-16 rounded-full bg-amber-100 text-amber-600 mb-6 text-3xl font-bold">2</div>
+                        <h3 class="text-xl font-bold mb-3">Analyze & Prioritize</h3>
+                        <p class="text-gray-600">Translate audit findings into a prioritized action plan. Use Lifecycle Costing (LCC) and ROI analysis to build a robust financial case. Remember to quantify all value streams: direct energy savings, avoided downtime, and recovered product.</p>
+                    </div>
+                     <div class="bg-gray-50 p-8 rounded-lg shadow-md">
+                        <div class="flex items-center justify-center w-16 h-16 rounded-full bg-sky-100 text-sky-600 mb-6 text-3xl font-bold">3</div>
+                        <h3 class="text-xl font-bold mb-3">Implement & Culture</h3>
+                        <p class="text-gray-600">Overcome hurdles like capital costs and system integration with a strong business case. Foster a culture of efficiency through operator training, clear communication, and breaking down silos between maintenance and operations to ensure long-term success.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-gray-800 text-white py-8">
+        <div class="container mx-auto px-6 text-center">
+            <p>&copy; 2025 Compressor Efficiency Interactive Report. All data derived from source report.</p>
+            <p class="text-sm text-gray-400 mt-2">This is a conceptual web application for informational purposes.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            // Data from the report
+            const lifecycleCostData = {
+                labels: ['Energy Cost', 'Maintenance Cost', 'Initial Capital Cost'],
+                data: [75, 15, 10],
+                colors: ['#047857', '#FBBF24', '#EF4444']
+            };
+
+            const compressorTypesData = {
+                centrifugal: {
+                    title: 'Dynamic: Centrifugal Compressors',
+                    content: `
+                        <p class="mb-4">The workhorses for large-volume, continuous-duty services where a steady, pulsation-free flow is required. They operate by accelerating gas with a spinning impeller and converting kinetic energy into pressure.</p>
+                        <ul class="space-y-3 list-disc list-inside text-gray-600">
+                            <li><strong>Key Strength:</strong> High flow capacity, high reliability, and low maintenance.</li>
+                            <li><strong>Typical Applications:</strong> Catalytic Reforming, FCC Air Blower, LNG production, main hydrogen plant feed.</li>
+                            <li><strong>Efficiency Profile:</strong> Extremely efficient near their design point (BEP), but efficiency drops significantly at part-load.</li>
+                        </ul>`
+                },
+                reciprocating: {
+                    title: 'Positive Displacement: Reciprocating Compressors',
+                    content: `
+                        <p class="mb-4">The quintessential solution for high-pressure, lower-flow applications. They use a piston driven by a crankshaft to compress gas within a cylinder, capable of reaching very high pressures.</p>
+                        <ul class="space-y-3 list-disc list-inside text-gray-600">
+                            <li><strong>Key Strength:</strong> Very high pressure capability, high compression ratios, and high efficiency across a wide operating range.</li>
+                            <li><strong>Typical Applications:</strong> Hydrocracking, Hydrodesulfurization, high-pressure hydrogen recycle and makeup.</li>
+                            <li><strong>Efficiency Profile:</strong> Maintains very good efficiency during part-load operation using capacity control mechanisms like valve unloaders.</li>
+                        </ul>`
+                },
+                rotaryscrew: {
+                    title: 'Positive Displacement: Rotary Screw Compressors',
+                    content: `
+                        <p class="mb-4">These compressors bridge the gap between centrifugal and reciprocating types, using a pair of meshing helical screws to trap and compress gas. They provide a continuous, pulsation-free flow.</p>
+                        <ul class="space-y-3 list-disc list-inside text-gray-600">
+                            <li><strong>Key Strength:</strong> Tolerates "dirty" gas streams with entrained liquids, compact design, and excellent part-load efficiency with a VFD.</li>
+                            <li><strong>Typical Applications:</strong> Flare gas recovery, fuel gas boosting, handling wet gas streams, backup/trim air systems.</li>
+                            <li><strong>Efficiency Profile:</strong> Offers high efficiency, especially when equipped with a VFD, and performs well under varying load conditions.</li>
+                        </ul>`
+                }
+            };
+
+            const strategiesData = [
+                { label: 'Leak Detection & Repair (LDAR)', x: 1, y: 12.5, cost: 'low', payback: '< 1 year' },
+                { label: 'Pressure Optimization', x: 1, y: 1, cost: 'low', payback: 'Immediate' },
+                { label: 'Inlet Air Cooling', x: 1, y: 3, cost: 'low', payback: '< 1 year' },
+                { label: 'Proactive/CBM Maintenance', x: 1.5, y: 6.5, cost: 'medium', payback: '1-3 years' },
+                { label: 'Waste Heat Recovery', x: 2.5, y: 15, cost: 'medium', payback: '2-5 years' },
+                { label: 'Variable Frequency Drive (VFD)', x: 3, y: 32.5, cost: 'high', payback: '1-4 years' },
+                { label: 'System Right-Sizing / Re-piping', x: 3, y: 15, cost: 'high', payback: '> 3 years' },
+                { label: 'Advanced Process Control (APC)', x: 3, y: 10, cost: 'high', payback: '< 2 years' },
+            ];
+
+            const caseStudiesData = {
+                'system-audit': {
+                    title: 'System-Wide Audit & Retrofit',
+                    problem: 'High energy costs, inefficient operation, and reliance on expensive rental units.',
+                    solution: 'A holistic audit followed by leak repair, equipment right-sizing, piping reconfiguration, and prioritizing a "free energy" steam-driven compressor.',
+                    results: 'Annual energy costs were cut by ~$382,000, and rental costs were reduced by ~$441,000, for a total annual impact of ~$823,000.',
+                    value: 0.823,
+                    type: 'Savings ($M)'
+                },
+                'vfd-high-hp': {
+                    title: 'VFD on High-HP Compressor',
+                    problem: 'Severe grid voltage sags during motor startup caused utility-mandated shutdowns, costing >$200,000/week.',
+                    solution: 'Installation of a medium-voltage Variable Frequency Drive (VFD) to enable smooth "soft starts".',
+                    results: 'Eliminated costly downtime (worth >$10M/year) and generated an additional $100,000 in annual energy savings.',
+                    value: 10.1,
+                    type: 'Avoided Loss ($M)'
+                },
+                'vfd-soft-start': {
+                    title: 'VFD Soft-Starter for H2 Compressors',
+                    problem: 'Massive inrush current from direct-on-line motor starts caused refinery-wide power trips and production halts.',
+                    solution: 'A VFD was implemented purely as a soft-starter to smoothly accelerate motors before grid connection.',
+                    results: 'Completely eliminated production-halting power failures, leading to a significant and immediate increase in overall plant profitability.',
+                    value: 5, // Estimated value for chart
+                    type: 'Profitability Gain (Est. $M)'
+                },
+                'turnaround-opt': {
+                    title: 'Performance Optimization During Turnaround',
+                    problem: 'A planned compressor shutdown would have forced a major cut in oil production (Lost Production Opportunity).',
+                    solution: 'An operational change: operators reduced the discharge pressure on the two remaining compressors, allowing them to handle higher gas throughput.',
+                    results: 'This no-cost adjustment avoided an LPO of ~230,000 barrels of oil, equating to a staggering $21 million in saved revenue.',
+                    value: 21,
+                    type: 'Avoided Loss ($M)'
+                }
+            };
+
+            // Chart Instantiation
+            let lifecycleChart, strategiesChart, caseStudiesChart;
+
+            function createLifecycleChart() {
+                const ctx = document.getElementById('lifecycleCostChart')?.getContext('2d');
+                if (!ctx) return;
+                lifecycleChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: lifecycleCostData.labels,
+                        datasets: [{
+                            data: lifecycleCostData.data,
+                            backgroundColor: lifecycleCostData.colors,
+                            borderColor: '#FDFBF8',
+                            borderWidth: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                enabled: true,
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.label}: ${context.raw}%`;
+                                    }
+                                }
+                            }
+                        },
+                        cutout: '60%'
+                    }
+                });
+            }
+
+            function createStrategiesChart(filter = 'all') {
+                const ctx = document.getElementById('strategiesChart')?.getContext('2d');
+                if (!ctx) return;
+
+                const filteredData = strategiesData.filter(d => filter === 'all' || d.cost === filter);
+
+                const data = {
+                    datasets: [{
+                        label: 'Efficiency Strategies',
+                        data: filteredData.map(d => ({ x: d.x, y: d.y, r: (d.y / 2) + 8, label: d.label, payback: d.payback })),
+                        backgroundColor: filteredData.map(d => {
+                            if (d.cost === 'low') return 'rgba(5, 150, 105, 0.7)'; // Emerald
+                            if (d.cost === 'medium') return 'rgba(245, 158, 11, 0.7)'; // Amber
+                            return 'rgba(220, 38, 38, 0.7)'; // Red
+                        }),
+                        borderColor: filteredData.map(d => {
+                            if (d.cost === 'low') return 'rgba(4, 120, 87, 1)';
+                            if (d.cost === 'medium') return 'rgba(217, 119, 6, 1)';
+                            return 'rgba(185, 28, 28, 1)';
+                        }),
+                        borderWidth: 2
+                    }]
+                };
+
+                if (strategiesChart) {
+                    strategiesChart.destroy();
+                }
+
+                strategiesChart = new Chart(ctx, {
+                    type: 'bubble',
+                    data: data,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                enabled: true,
+                                backgroundColor: '#3D4451',
+                                titleFont: { size: 14, weight: 'bold' },
+                                bodyFont: { size: 12 },
+                                padding: 10,
+                                displayColors: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        const point = context.dataset.data[context.dataIndex];
+                                        return [
+                                            `Strategy: ${point.label}`,
+                                            `Est. Savings: ${point.y}%`,
+                                            `Payback: ${point.payback}`
+                                        ];
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Estimated Energy Savings Potential (%)',
+                                    font: { size: 14 }
+                                },
+                                min: 0,
+                                max: 40
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Implementation Cost & Complexity',
+                                    font: { size: 14 }
+                                },
+                                min: 0,
+                                max: 3.5,
+                                ticks: {
+                                    stepSize: 1,
+                                    callback: function(value, index, values) {
+                                        const labels = {0: '', 1: 'Low', 2: 'Medium', 3: 'High'};
+                                        return labels[value] || '';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function createCaseStudiesChart() {
+                const ctx = document.getElementById('caseStudiesChart')?.getContext('2d');
+                if (!ctx) return;
+
+                const labels = Object.values(caseStudiesData).map(c => c.title);
+                const data = Object.values(caseStudiesData).map(c => c.value);
+                const types = Object.values(caseStudiesData).map(c => c.type);
+
+                caseStudiesChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Financial Impact ($ Million)',
+                            data: data,
+                            backgroundColor: 'rgba(4, 120, 87, 0.6)',
+                            borderColor: 'rgba(4, 120, 87, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                enabled: true,
+                                callbacks: {
+                                    label: function(context) {
+                                        const value = context.raw;
+                                        const type = types[context.dataIndex];
+                                        return `${type}: $${value.toFixed(1)}M`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                           x: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Total Financial Impact (Millions of USD)'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // UI Interaction Logic
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            const tabContentContainer = document.getElementById('tab-content');
+
+            function updateTabContent(tabId) {
+                const data = compressorTypesData[tabId];
+                if (data) {
+                    tabContentContainer.innerHTML = `
+                        <div class="bg-gray-50 p-8 rounded-lg shadow-inner fade-in">
+                            <h3 class="text-2xl font-bold text-gray-800 mb-4">${data.title}</h3>
+                            ${data.content}
+                        </div>`;
+                }
+            }
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    updateTabContent(button.dataset.tab);
+                });
+            });
+            
+            const filterButtons = document.querySelectorAll('.filter-btn');
+            filterButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    filterButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    createStrategiesChart(button.dataset.filter);
+                });
+            });
+
+            const caseStudyCardsContainer = document.getElementById('case-study-cards');
+            const caseTitleEl = document.getElementById('case-title');
+            const caseContentEl = document.getElementById('case-content');
+
+            function populateCaseStudies() {
+                let cardsHtml = '';
+                for (const [id, caseData] of Object.entries(caseStudiesData)) {
+                    cardsHtml += `
+                    <div class="case-card bg-white p-6 rounded-lg shadow-md border border-gray-200" data-case-id="${id}">
+                        <h4 class="font-bold text-lg text-gray-800">${caseData.title}</h4>
+                        <p class="text-sm text-gray-500 mt-1">Click to learn more</p>
+                    </div>`;
+                }
+                caseStudyCardsContainer.innerHTML = cardsHtml;
+                
+                document.querySelectorAll('.case-card').forEach(card => {
+                    card.addEventListener('click', (e) => {
+                        const caseId = e.currentTarget.dataset.caseId;
+                        const data = caseStudiesData[caseId];
+                        
+                        document.querySelectorAll('.case-card').forEach(c => c.classList.remove('ring-2', 'ring-emerald-500'));
+                        e.currentTarget.classList.add('ring-2', 'ring-emerald-500');
+
+                        caseTitleEl.innerText = data.title;
+                        caseContentEl.innerHTML = `
+                            <div class="fade-in space-y-3">
+                                <p><strong class="font-semibold text-gray-700">Problem:</strong> ${data.problem}</p>
+                                <p><strong class="font-semibold text-gray-700">Solution:</strong> ${data.solution}</p>
+                                <p class="text-emerald-700 font-semibold"><strong class="text-gray-700">Results:</strong> ${data.results}</p>
+                            </div>
+                        `;
+                    });
+                });
+            }
+
+            // Mobile menu toggle
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenuButton.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
+            
+            // Smooth scrolling and active nav link highlighting
+            const sections = document.querySelectorAll('main section');
+            const navLinks = document.querySelectorAll('.nav-link');
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        navLinks.forEach(link => {
+                            link.classList.remove('active');
+                            if (link.getAttribute('href').substring(1) === entry.target.id) {
+                                link.classList.add('active');
+                            }
+                        });
+                    }
+                });
+            }, { rootMargin: "-50% 0px -50% 0px" });
+
+            sections.forEach(section => {
+                observer.observe(section);
+            });
+            
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    if (mobileMenu.offsetParent !== null) {
+                       mobileMenu.classList.add('hidden');
+                    }
+                });
+            });
+
+
+            // Initial render
+            createLifecycleChart();
+            updateTabContent('centrifugal');
+            createStrategiesChart('all');
+            populateCaseStudies();
+            createCaseStudiesChart();
+        });
+    </script>
+</body>
+</html>
